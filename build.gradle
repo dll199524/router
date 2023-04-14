@@ -1,0 +1,52 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+plugins {
+    id 'com.android.application' version '7.2.1' apply false
+    id 'com.android.library' version '7.2.1' apply false
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
+
+
+ext {
+    isRelease = true;
+
+    app_android = [
+            compileSdk                      : 32,
+            minSdk                          : 21,
+            targetSdk                       : 32,
+            versionCode                     : 1,
+            versionName                     :"1.0",
+            testInstrumentationRunner       : "androidx.test.runner.AndroidJUnitRunner"
+    ]
+
+    app_appid = [
+            "order"     : "com.example.order",
+            "person"    : "com.example.person"
+    ]
+
+    app_url = [
+            "debug"   : "https://11.22.33.44/debug",
+            "release" : "https://55.66.77.88/release"
+    ]
+
+    app_dependences = [
+            "appcompat"         : 'androidx.appcompat:appcompat:1.3.0',
+            "material"          : 'com.google.android.material:material:1.4.0',
+            "constraintlayout"  : 'androidx.constraintlayout:constraintlayout:2.0.4',
+            "aspectj"           : 'org.aspectj:aspectjrt:1.9.6',
+
+            "rxpermissions"     : 'com.github.tbruyelle:rxpermissions:0.12',
+            "rxjava3"           : 'io.reactivex.rxjava3:rxandroid:3.0.0',
+            "rxjava31"          : 'io.reactivex.rxjava3:rxjava:3.0.0',
+
+            "retrofit2"         : 'com.squareup.retrofit2:retrofit:2.4.0',
+            "retrofit21"        : 'com.squareup.retrofit2:converter-gson:2.4.0',
+            "retrofit22"        : 'com.squareup.retrofit2:adapter-rxjava2:2.4.0',
+
+            "okhttp3"           : 'com.squareup.okhttp3:logging-interceptor:3.8.0',
+            "gilde"             : 'com.github.bumptech.glide:glide:4.11.0'
+
+    ]
+}
