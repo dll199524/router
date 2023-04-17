@@ -83,7 +83,7 @@ public class MoudleProcessor extends AbstractProcessor {
             }
 
             @Override
-            public String findModuleClassName(String moduleName) {
+            public String findAction(String moduleName) {
                 return actions.get(moduleName);
             }
         }*/

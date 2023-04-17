@@ -1,5 +1,9 @@
 package com.example.myrouter_api.action;
 
-public interface RouterInterceptor {
+import com.example.myrouter_api.interceptor.ActionInterceptor;
 
+import java.util.List;
+
+public interface RouterInterceptor {
+    List<ActionInterceptor> getInterceptors();
 }

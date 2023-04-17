@@ -3,9 +3,12 @@ package com.example.myrouter_api.core;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.telephony.mbms.MbmsErrors;
 import android.text.TextUtils;
 import android.widget.Toast;
 
+
+import com.example.myrouter_api.action.RouterAction;
 import com.example.myrouter_api.action.RouterInterceptor;
 import com.example.myrouter_api.action.RouterModule;
 import com.example.myrouter_api.exception.InitException;
@@ -13,11 +16,13 @@ import com.example.myrouter_api.extra.ActionWrapper;
 import com.example.myrouter_api.extra.Consts;
 import com.example.myrouter_api.extra.ErrorActionWrapper;
 import com.example.myrouter_api.interceptor.ActionInterceptor;
+import com.example.myrouter_api.interceptor.CallActionInterceptor;
 import com.example.myrouter_api.interceptor.ErrorInterceptor;
+import com.example.myrouter_api.thread.PosterSupport;
 import com.example.myrouter_api.utils.ClassUtils;
 import com.example.myrouter_api.utils.DefaultLogger;
 import com.example.myrouter_api.utils.ILogger;
-import com.example.myrouter_api.wrapper.ActionWarpper;
+
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -36,6 +41,7 @@ public class MyRouter {
     private volatile static Map<String, RouterModule> cacheRouterModules = new HashMap<>();
     private static List<String> allModuleClassNames;
     private static List<ActionInterceptor> interceptors = new ArrayList<>();
+
 
     public static synchronized void openDebug() {
         isDebug = true;
@@ -66,7 +72,27 @@ public class MyRouter {
     }
 
     private void scanAllInterceptors(Context context) {
-
+        PosterSupport.executorService().execute(() -> {
+            interceptors.add(new ErrorInterceptor());
+            try {
+                List<String> interceptorGroups = ClassUtils.getFileNameByPackageName(context, Consts.ROUTER_INTERCEPTOR_PACK_NAME);
+                for (String interceptorGroup : interceptorGroups) {
+                    if (interceptorGroup.contains(Consts.ROUTER_INTERCEPTOR_GROUP_PREFIX)) {
+                        RouterInterceptor routerInterceptor = (RouterInterceptor) Class.forName(interceptorGroup).newInstance();
+                        List<ActionInterceptor> interceptorClasses = routerInterceptor.getInterceptors();
+                        for (int i = interceptorClasses.size() - 1; i > 0; i--) {
+                            ActionInterceptor actionInterceptor = interceptorClasses.get(i);
+                            interceptors.add(actionInterceptor);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                String message = "instance interceptor error: " + e.getMessage();
+                logger.e(Consts.TAG, message);
+            }
+            interceptors.add(new CallActionInterceptor());
+        });
     }
 
     private RouterForward action(String actionName) {
@@ -81,7 +107,7 @@ public class MyRouter {
         String moudleName = actionName.split("/")[0];
         String moduleClassName = searchModuleClassName(moudleName);
         if (TextUtils.isEmpty(moduleClassName)) {
-            String message = String.format("Please check to the action name is correct: according to the <%s> cannot find module %s.", actionName, moduleName);
+            String message = String.format("Please check to the action name is correct: according to the <%s> cannot find module %s.", actionName, moduleClassName);
             debugMessage(message);
             return new RouterForward(new ErrorActionWrapper(), interceptors);
         }
@@ -101,11 +127,35 @@ public class MyRouter {
 
         ActionWrapper actionWrapper = cacheRouterActions.get(actionName);
         if (actionWrapper == null) {
-
+            actionWrapper = routerModule.findAction(actionName);
+        } else {
+            return new RouterForward(actionWrapper, interceptors);
+        }
+        if (actionWrapper == null) {
+            String message = String.format("Please check to the action name is correct: according to the <%s> cannot find action.", actionName);
+            debugMessage(message);
+            return new RouterForward(new ErrorActionWrapper(), interceptors);
         }
 
-
-
+        Class<? extends RouterAction> actionClass = actionWrapper.getActionClass();
+        RouterAction routerAction = actionWrapper.getRouterAction();
+        if (routerAction == null) {
+            try {
+                if (!RouterAction.class.isAssignableFrom(actionClass)) {
+                    String message = actionClass.getCanonicalName() + " must be implements IRouterAction.";
+                    debugMessage(message);
+                    return new RouterForward(new ErrorActionWrapper(), interceptors);
+                }
+                routerAction = actionClass.newInstance();
+                actionWrapper.setRouterAction(routerAction);
+                cacheRouterActions.put(actionName, actionWrapper);
+            } catch (Exception e) {
+                String message = "instance action error" + e.getMessage();
+                debugMessage(message);
+                return new RouterForward(new ErrorActionWrapper(), interceptors);
+            }
+        }
+        return new RouterForward(actionWrapper, interceptors);
     }
 
     private String searchModuleClassName(String moudleName) {
